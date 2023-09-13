@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "common.h"
+#include "compiler.h"
 #include "debug.h"
 
 VM vm;  // if needed to run multiple vm, better if this is not global
@@ -83,8 +84,7 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
 #undef READ_BYTE
 }
 
-InterpretResult interpret(Chunk* chunk) {
-  vm.chunk = chunk;
-  vm.ip = vm.chunk->code;  // ideally kept in a local variable to improve speed
-  return run();
+InterpretResult interpret(const char* source) {
+  compile(source);
+  return INTERPRET_OK;
 }
