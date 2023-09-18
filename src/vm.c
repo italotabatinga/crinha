@@ -47,6 +47,10 @@ static Value peek(int distance) {
   return vm.stackTop[-1 - distance];
 }
 
+static bool isFalsey(Value value) {
+  return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
+}
+
 static InterpretResult run() {  // dispatching can be made faster with direct threaded code, jump table, computed goto
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
@@ -95,6 +99,7 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
       case OP_DIVIDE:
         BINARY_OP(NUMBER_VAL, /);
         break;
+      case OP_NOT: push(BOOL_VAL(isFalsey(pop()))); break;
       case OP_NEGATE: {
         if (!IS_NUMBER(peek(0))) {
           runtimeError("Operand must be a number.");
