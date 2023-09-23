@@ -9,6 +9,7 @@ typedef enum {
   OP_NIL, // faster than storing in the const array, could be used to optimize other frequent values
   OP_TRUE,
   OP_FALSE,
+  OP_POP,
   OP_BANG_EQUAL,
   OP_EQUAL,
   OP_GREATER,
