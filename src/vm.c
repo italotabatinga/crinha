@@ -141,9 +141,12 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
       }
-      case OP_RETURN:
+      case OP_PRINT: {
         printValue(pop());
         printf("\n");
+        break;
+      }
+      case OP_RETURN:
         return INTERPRET_OK;
     }
   }
