@@ -16,12 +16,13 @@ typedef enum {
 
 struct Obj {
   ObjType type;
+  struct Obj* next;
 };
 
-struct ObjString {
+struct ObjString { // PERF: could allocate ObjString and chars once using flexible array members
   Obj obj;
   int length;
-  char* chars;
+  char* chars; // MEM: could point to the source string if the string is "constant", reducing memory usage
 };
 
 ObjString* takeString(char* chars, int length);
