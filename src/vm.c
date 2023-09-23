@@ -112,6 +112,16 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
       case OP_TRUE: push(BOOL_VAL(true)); break;
       case OP_FALSE: push(BOOL_VAL(false)); break;
       case OP_POP: pop(); break;
+      case OP_GET_LOCAL: {
+        uint8_t slot = READ_BYTE();
+        push(vm.stack[slot]);
+        break;
+      }
+      case OP_SET_LOCAL: {
+        uint8_t slot = READ_BYTE();
+        vm.stack[slot] = peek(0);
+        break;
+      }
       case OP_GET_GLOBAL: { // PERF: looking up in hash tables is slow, how to improve?
         ObjString* name = READ_STRING();
         Value value;
@@ -122,7 +132,7 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
         push(value);
         break;
       }
-      case OP_DEFINE_GLOBAL: {
+      case OP_DEFINE_GLOBAL: { // PERF: global vars are lazy eval, change to compile time to improve perf
         ObjString* name = READ_STRING();
         tableSet(&vm.globals, name, peek(0));
         pop();
