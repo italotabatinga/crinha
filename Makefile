@@ -10,7 +10,7 @@ TARGET = main
 $(BUILD_DIR)/$(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(SRC_DIR)/%.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BUILD_DIR):
