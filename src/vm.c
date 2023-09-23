@@ -112,7 +112,7 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
       case OP_TRUE: push(BOOL_VAL(true)); break;
       case OP_FALSE: push(BOOL_VAL(false)); break;
       case OP_POP: pop(); break;
-      case OP_GET_GLOBAL: {
+      case OP_GET_GLOBAL: { // PERF: looking up in hash tables is slow, how to improve?
         ObjString* name = READ_STRING();
         Value value;
         if (!tableGet(&vm.globals, name, &value)) {
@@ -126,6 +126,15 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
         ObjString* name = READ_STRING();
         tableSet(&vm.globals, name, peek(0));
         pop();
+        break;
+      }
+      case OP_SET_GLOBAL: {
+        ObjString* name = READ_STRING();
+        if (tableSet(&vm.globals, name, peek(0))) {
+          tableDelete(&vm.globals, name);
+          runtimeError("Undefined variable '%s'.", name->chars);
+          return INTERPRET_RUNTIME_ERROR;
+        }
         break;
       }
       case OP_BANG_EQUAL: {
