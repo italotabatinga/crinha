@@ -77,6 +77,8 @@ static void concatenate() {
 static InterpretResult run() {  // dispatching can be made faster with direct threaded code, jump table, computed goto
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+#define READ_SHORT() \
+  (vm.ip += 2, (uint16_t)((vm.ip[-2] << 8 | vm.ip[-1])))
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op)                      \
   do {                                                \
@@ -122,7 +124,7 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
         vm.stack[slot] = peek(0);
         break;
       }
-      case OP_GET_GLOBAL: { // PERF: looking up in hash tables is slow, how to improve?
+      case OP_GET_GLOBAL: {  // PERF: looking up in hash tables is slow, how to improve?
         ObjString* name = READ_STRING();
         Value value;
         if (!tableGet(&vm.globals, name, &value)) {
@@ -132,7 +134,7 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
         push(value);
         break;
       }
-      case OP_DEFINE_GLOBAL: { // PERF: global vars are lazy eval, change to compile time to improve perf
+      case OP_DEFINE_GLOBAL: {  // PERF: global vars are lazy eval, change to compile time to improve perf
         ObjString* name = READ_STRING();
         tableSet(&vm.globals, name, peek(0));
         pop();
@@ -193,14 +195,25 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
         printf("\n");
         break;
       }
+      case OP_JUMP: {
+        uint16_t offset = READ_SHORT();
+        vm.ip += offset;
+        break;
+      }
+      case OP_JUMP_IF_FALSE: {
+        uint16_t offset = READ_SHORT();
+        if (isFalsey(peek(0))) vm.ip += offset;
+        break;
+      }
       case OP_RETURN:
         return INTERPRET_OK;
     }
   }
+#undef READ_BYTE
+#undef READ_SHORT
 #undef READ_CONSTANT
 #undef READ_STRING
 #undef READ_BINARY_OP
-#undef READ_BYTE
 }
 
 InterpretResult interpret(const char* source) {
