@@ -22,6 +22,7 @@ struct Obj {
 struct ObjString { // PERF: could allocate ObjString and chars once using flexible array members
   Obj obj;
   int length;
+  uint32_t hash;
   char* chars; // MEM: could point to the source string if the string is "constant", reducing memory usage
 };
 
