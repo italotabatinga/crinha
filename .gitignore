@@ -30,7 +30,6 @@
 
 # Executables
 *.exe
-*.out
 *.app
 *.i*86
 *.x86_64
@@ -57,3 +56,7 @@ build
 # Code Editor
 .vscode
 crinha.xcodeproj
+.DS_Store
+
+# Tests
+tmp

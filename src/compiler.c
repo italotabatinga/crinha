@@ -633,7 +633,6 @@ static void ifStatement() {
 
 static void printStatement() {
   expression();
-  consume(TOKEN_SEMICOLON, "Expect ';' after value.");
   emitByte(OP_PRINT);
 }
 
