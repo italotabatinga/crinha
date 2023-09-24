@@ -60,7 +60,7 @@ static Token makeToken(TokenType type) {
   token.length = (int)(scanner.current - scanner.start);
   token.line = scanner.line;
 #ifdef DEBUG_PRINT_CODE
-  printf("Token scanned %d %*.s, line %d\n", token.type, token.length, token.start, token.line);
+  printf("Token scanned %d %.*s, line %d\n", token.type, token.length, token.start, token.line);
 #endif
   return token;
 }
