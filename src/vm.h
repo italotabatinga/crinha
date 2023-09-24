@@ -10,7 +10,7 @@
 
 typedef struct {
   ObjFunction* function;
-  uint8_t* ip;
+  uint8_t* ip; // PERF: this causes pointer indirection access, ip could be a register variable
   Value* slots;
 } CallFrame;
 
