@@ -8,7 +8,7 @@
 #include "vm.h"
 
 static void repl() {
-  char line[1024]; // could support multiple lines instead
+  char line[1024];  // could support multiple lines instead
   for (;;) {
     printf("> ");
 
