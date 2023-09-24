@@ -272,8 +272,19 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
         frame = &vm.frames[vm.frameCount - 1];
         break;
       }
-      case OP_RETURN:
-        return INTERPRET_OK;
+      case OP_RETURN: {
+        Value result = pop();
+        vm.frameCount--;
+        if (vm.frameCount == 0) {
+          pop();
+          return INTERPRET_OK;
+        }
+
+        vm.stackTop = frame->slots;
+        push(result);
+        frame = &vm.frames[vm.frameCount - 1];
+        break;
+      }
     }
   }
 #undef READ_BYTE
