@@ -11,7 +11,7 @@ Fortemente baseado no livro [Crafting Interpreters](https://craftinginterpreters
 Para compilar o arquivo utilizando o `gcc` local:
 ```sh
 make clean && make
-build/main {{ nome_do_arquivo }} # para executar o repl
+build/main # para executar o repl
 build/main {{ nome_do_arquivo.rinha }} # para rodar um arquivo .rinha
 ```
 
@@ -43,7 +43,7 @@ fib.rb........................1.014850
 
 ## Tests
 
-Na pasta [`tests/`] tem testes para diferentes cenários. Para executar, basta rodar o comando abaixo:
+Na pasta [`tests/`](tests/) tem testes para diferentes cenários. Para executar, basta rodar o comando abaixo:
 
 ```bash
 ./test.sh
