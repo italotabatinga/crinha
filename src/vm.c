@@ -228,7 +228,7 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
       printf("]");
     }
     printf("\n");
-    disassembleInstruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
+    disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
 #endif
 
     uint8_t instruction;
@@ -289,7 +289,7 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
         *frame->closure->upvalues[slot]->location = peek(0);
         break;
       }
-      case OP_DEFINE_TUPLE: {  // PERF: global vars are lazy eval, change to compile time to improve perf
+      case OP_DEFINE_TUPLE: {
         Value second = pop();
         Value first = pop();
         push(OBJ_VAL(newTuple(&first, &second)));
@@ -312,21 +312,23 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
       case OP_GREATER_EQUAL: BINARY_OP(BOOL_VAL, >=); break;
       case OP_LESS_EQUAL: BINARY_OP(BOOL_VAL, <=); break;
       case OP_ADD: {
-        if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+        Value p0 = peek(0);
+        Value p1 = peek(1);
+        if (IS_STRING(p0) && IS_STRING(p1)) {
           ObjString* b = AS_STRING(pop());
           ObjString* a = AS_STRING(pop());
 
           concatenate(a->chars, a->length, b->chars, b->length);
-        } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+        } else if (IS_NUMBER(p0) && IS_NUMBER(p1)) {
           int b = AS_NUMBER(pop());
           int a = AS_NUMBER(pop());
           push(NUMBER_VAL(a + b));
-        } else if (IS_NUMBER(peek(0)) && IS_STRING(peek(1))) {
+        } else if (IS_NUMBER(p0) && IS_STRING(p1)) {
           ObjString* b = convertToString(pop());
           ObjString* a = AS_STRING(pop());
 
           concatenate(a->chars, a->length, b->chars, b->length);
-        } else if (IS_STRING(peek(0)) && IS_NUMBER(peek(1))) {
+        } else if (IS_STRING(p0) && IS_NUMBER(p1)) {
           ObjString* b = AS_STRING(pop());
           ObjString* a = convertToString(pop());
 
