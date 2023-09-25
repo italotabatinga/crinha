@@ -112,20 +112,21 @@ static TokenType identifierType() {  // could be dfa, trie, lex
   switch (scanner.start[0]) {
     case 'l':
       return checkKeyword(1, 2, "et", TOKEN_LET);
-    case 'f':
-      return checkKeyword(1, 1, "n", TOKEN_FN);
-    case 'e':
-      return checkKeyword(1, 3, "lse", TOKEN_ELSE);
-    case 'i':
-      return checkKeyword(1, 1, "f", TOKEN_IF);
-    case 'n':
-      return checkKeyword(1, 2, "il", TOKEN_NIL);
-    case 'p':
-      return checkKeyword(1, 4, "rint", TOKEN_PRINT);
-    case 'r':
-      return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
-    case 'w':
-      return checkKeyword(1, 4, "hile", TOKEN_WHILE);
+    case 'f': {
+      if (scanner.current - scanner.start > 1) {
+        switch (scanner.start[1]) {
+          case 'a': return checkKeyword(2, 3, "lse", TOKEN_FALSE);
+          case 'n': return TOKEN_FN;
+        }
+      }
+    }
+    case 'e': return checkKeyword(1, 3, "lse", TOKEN_ELSE);
+    case 'i': return checkKeyword(1, 1, "f", TOKEN_IF);
+    case 'n': return checkKeyword(1, 2, "il", TOKEN_NIL);
+    case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT);
+    case 'r': return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
+    case 'w': return checkKeyword(1, 4, "hile", TOKEN_WHILE);
+    case 't': return checkKeyword(1, 3, "rue", TOKEN_TRUE);
   }
 
   return TOKEN_IDENTIFIER;

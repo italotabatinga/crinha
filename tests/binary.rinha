@@ -1,0 +1,32 @@
+print (3+5) // Add
+print ("a" + 2)
+print (2 + "a")
+print ("a" + "b")
+print (0 - 1) // Sub
+print (2 * 2) // Mul
+print (3 / 2) // Div
+print (4 % 2) // Rem
+print ("a" == "a") // Eq
+print (2 == 1 + 1)
+print (true == true)
+print (false == false)
+print (true == false)
+print ("a" != "b") // Neq
+print ("a" != "a")
+print (3 != 1 + 1)
+print (true != false)
+print (true != true)
+print (1 < 2) // Lt
+print (2 < 2)
+print (3 < 2)
+print (1 > 2) // Gt
+print (2 > 2)
+print (3 > 2)
+print (1 <= 2) // Lte
+print (2 <= 2)
+print (3 <= 2)
+print (1 >= 2) // Gte
+print (2 >= 2)
+print (3 >= 2)
+print (true && false) // And
+print (false || true) // Or
