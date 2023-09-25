@@ -17,7 +17,7 @@ typedef struct {  // memory layout is interesting in this one, see the differenc
   ValueType type;
   union {
     bool boolean;
-    double number;
+    int number;
     Obj* obj;
   } as;
 } Value;

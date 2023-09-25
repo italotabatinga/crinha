@@ -155,14 +155,11 @@ static bool isFalsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
-static void concatenate() {
-  ObjString* b = AS_STRING(pop());
-  ObjString* a = AS_STRING(pop());
-
-  int length = a->length + b->length;
+static void concatenate(char* a, int aLength, char* b, int bLength) {
+  int length = aLength + bLength;
   char* chars = ALLOCATE(char, length + 1);
-  memcpy(chars, a->chars, a->length);
-  memcpy(chars + a->length, b->chars, b->length);
+  memcpy(chars, a, aLength);
+  memcpy(chars + aLength, b, bLength);
   chars[length] = '\0';
 
   ObjString* result = takeString(chars, length);
@@ -184,8 +181,8 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
       runtimeError("Operands must be numbers.");      \
       return INTERPRET_RUNTIME_ERROR;                 \
     }                                                 \
-    double b = AS_NUMBER(pop());                      \
-    double a = AS_NUMBER(pop());                      \
+    int b = AS_NUMBER(pop());                      \
+    int a = AS_NUMBER(pop());                      \
     push(valueType(a op b));                          \
   } while (false)
 
@@ -275,11 +272,25 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
       case OP_LESS_EQUAL: BINARY_OP(BOOL_VAL, <=); break;
       case OP_ADD: {
         if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
-          concatenate();
+          ObjString* b = AS_STRING(pop());
+          ObjString* a = AS_STRING(pop());
+
+          concatenate(a->chars, a->length, b->chars, b->length);
         } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
-          double b = AS_NUMBER(pop());
-          double a = AS_NUMBER(pop());
+          int b = AS_NUMBER(pop());
+          int a = AS_NUMBER(pop());
           push(NUMBER_VAL(a + b));
+        } else if (IS_NUMBER(peek(0)) && IS_STRING(peek(1))) {
+          ObjString* b = convertToString(pop());
+          ObjString* a = AS_STRING(pop());
+
+          concatenate(a->chars, a->length, b->chars, b->length);
+        } else if (IS_STRING(peek(0)) && IS_NUMBER(peek(1))) {
+          ObjString* b = AS_STRING(pop());
+          ObjString* a = convertToString(pop());
+
+          concatenate(a->chars, a->length, b->chars, b->length);
+
         } else {
           runtimeError("Operands must be two numbers or two strings.");
           return INTERPRET_RUNTIME_ERROR;
@@ -289,6 +300,7 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
       case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
       case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
       case OP_DIVIDE: BINARY_OP(NUMBER_VAL, /); break;
+      case OP_MODULO: BINARY_OP(NUMBER_VAL, %); break;
       case OP_NOT: push(BOOL_VAL(isFalsey(pop()))); break;
       case OP_NEGATE: {
         if (!IS_NUMBER(peek(0))) {

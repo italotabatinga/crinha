@@ -104,6 +104,19 @@ static void printFunction(ObjFunction* function) {
   printf("<fn %s>", function->name->chars);
 }
 
+ObjString* convertToString(Value value) {
+  if (IS_NUMBER(value)) {
+    int number = AS_NUMBER(value);
+    int length = snprintf(NULL, 0, "%d", number);
+    char* str = ALLOCATE(char, length + 1);
+    snprintf(str, length + 1, "%d", number);
+    str[length] = '\0';
+    return takeString(str, length);
+  }
+
+  return takeString("", 0);
+}
+
 void printObject(Value value) {
   switch (OBJ_TYPE(value)) {
     case OBJ_CLOSURE:
