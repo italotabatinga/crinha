@@ -204,7 +204,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 }
 
 static ObjFunction* endCompiler() {
-  emitReturn();
+  emitByte(OP_RETURN);
   ObjFunction* function = current->function;
 
 #ifdef DEBUG_PRINT_CODE
@@ -239,6 +239,7 @@ static void statement();
 static void declaration();
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
+static void function(FunctionType type);
 
 static uint8_t identifierConstant(Token* name) {
   return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
@@ -482,6 +483,10 @@ static void unary(bool canAssign) {
   }
 }
 
+static void functionExpression(bool canAssign) {
+  function(TYPE_FUNCTION);
+}
+
 ParseRule rules[] = {
     [TOKEN_LEFT_PAREN] = {grouping, call, PREC_CALL},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
@@ -511,7 +516,7 @@ ParseRule rules[] = {
     [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
     [TOKEN_FALSE] = {literal, NULL, PREC_NONE},
     [TOKEN_FOR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_FN] = {NULL, NULL, PREC_NONE},
+    [TOKEN_FN] = {functionExpression, NULL, PREC_NONE},
     [TOKEN_IF] = {NULL, NULL, PREC_NONE},
     [TOKEN_NIL] = {literal, NULL, PREC_NONE},
     [TOKEN_OR] = {NULL, or_, PREC_OR},
@@ -615,7 +620,6 @@ static void letDeclaration() {
 
 static void expressionStatement() {
   expression();
-  emitByte(OP_POP);
 }
 
 static void ifStatement() {
@@ -687,6 +691,8 @@ static void synchronize() {
         return;
       default:;
     }
+
+    advance();
   }
 }
 
