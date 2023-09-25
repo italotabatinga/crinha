@@ -1,4 +1,4 @@
-fn function() => {}
+let function = fn () => {};
 
 print ("Crinha!")
 print (2)

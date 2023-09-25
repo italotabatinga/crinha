@@ -103,14 +103,6 @@ ObjUpvalue* newUpvalue(Value* slot) {
   return upvalue;
 }
 
-static void printFunction(ObjFunction* function) {
-  if (function->name == NULL) {
-    printf("<script>");
-    return;
-  }
-  printf("<#%s>", function->name->chars);
-}
-
 ObjString* convertToString(Value value) {
   if (IS_NUMBER(value)) {
     int number = AS_NUMBER(value);
@@ -127,10 +119,10 @@ ObjString* convertToString(Value value) {
 void printObject(Value value) {
   switch (OBJ_TYPE(value)) {
     case OBJ_CLOSURE:
-      printFunction(AS_CLOSURE(value)->function);
+      printf("<#closure>");
       break;
     case OBJ_FUNCTION:
-      printFunction(AS_FUNCTION(value));
+      printf("<#closure>");
       break;
     case OBJ_NATIVE:
       printf("<native fn>");

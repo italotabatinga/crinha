@@ -598,13 +598,6 @@ static void function(FunctionType type) {
   }
 }
 
-static void fnDeclaration() {
-  uint8_t global = parseVariable("Expect function name.");
-  markInitialized();
-  function(TYPE_FUNCTION);
-  defineVariable(global);
-}
-
 static void letDeclaration() {
   uint8_t global = parseVariable("Expect variable name.");
 
@@ -697,9 +690,7 @@ static void synchronize() {
 }
 
 static void declaration() {
-  if (match(TOKEN_FN)) {
-    fnDeclaration();
-  } else if (match(TOKEN_LET)) {
+  if (match(TOKEN_LET)) {
     letDeclaration();
   } else {
     statement();

@@ -2,6 +2,6 @@ Crinha!
 2
 true
 false
-<#function>
+<#closure>
 (1, 2)
 ((1, 2), 8)

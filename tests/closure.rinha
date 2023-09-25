@@ -1,8 +1,19 @@
-fn outer() => {
+// outer closure from inside
+let outer = fn () => {
   let x = "outside";
-  fn inner() => {
+  let inner = fn () => {
     print x;
-  }
+  };
   inner();
-}
+};
 outer();
+
+// outer closure from outside
+let f = fn () => {
+  let x = 1;
+  fn () => {
+    x
+  }
+};
+let g = f();
+print(g())
