@@ -22,8 +22,13 @@ function benchmark() {
   f=$2
   filename=$(basename $f)
   printf %-30s $filename | tr ' ' .
-  elapsed=$( { time $cmd $f 2> /dev/null ; } 2>&1 )
-  echo $elapsed
+  times=20
+  elapsed=0.0
+  for (( i=1; i <= $times; i++ )); do
+    it=$( { time $cmd $f 2> /dev/null ; } 2>&1 )
+    elapsed=$(echo "$elapsed  $it" | awk '{printf "%f", $1 + $2}' )
+  done
+  echo "$elapsed $times" | awk '{printf "%f\n", $1 / $2}'
 }
 
 function benchmarks() {
