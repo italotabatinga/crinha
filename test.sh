@@ -1,14 +1,18 @@
 #!/bin/bash
 
 function setup() {
-  echo -n "building..."
+  echo -n "building....."
 
   rm -rf tmp
   mkdir -p tmp
-  make clean |> /dev/null
-  make |> /dev/null
+  make clean &> /dev/null
+  make &> /dev/null
+  if (($? > 0)); then
+    echo "error"
+    exit 1
+  fi
   cp build/main tmp/crinha
-  echo "done!"
+  echo "ok!"
   echo
 }
 
