@@ -13,10 +13,6 @@
 
 VM vm;  // if needed to run multiple vm, better if this is not global
 
-static Value clockNative(int argCount, Value* args) {
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
-}
-
 static void resetStack() {
   vm.stackTop = vm.stack;
   vm.frameCount = 0;
@@ -45,6 +41,39 @@ static void runtimeError(const char* format, ...) {
   resetStack();
 }
 
+static Value clockNative(int argCount, Value* args) {
+  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
+
+static Value printNative(int argCount, Value* args) {
+  if (argCount != 1) {
+    runtimeError("Expect 1 argument");
+    return NIL_VAL;
+  }
+
+  printValue(args[0]);
+  printf("\n");
+  return args[0];
+}
+
+static Value firstNative(int argCount, Value* args) {
+  if (argCount != 1 && !IS_TUPLE(args[0])) {
+    runtimeError("Expect 1 argument of type Tuple");
+    return NIL_VAL;
+  }
+
+  return AS_TUPLE(args[0])->first;
+}
+
+static Value secondNative(int argCount, Value* args) {
+  if (argCount != 1 && !IS_TUPLE(args[0])) {
+    runtimeError("Expect 1 argument of type Tuple");
+    return NIL_VAL;
+  }
+
+  return AS_TUPLE(args[0])->second;
+}
+
 static void defineNative(const char* name, NativeFn function) {
   push(OBJ_VAL(copyString(name, (int)strlen(name))));
   push(OBJ_VAL(newNative(function)));
@@ -59,6 +88,9 @@ void initVM() {
   initTable(&vm.strings);
 
   defineNative("clock", clockNative);
+  defineNative("print", printNative);
+  defineNative("first", firstNative);
+  defineNative("second", secondNative);
   vm.objects = NULL;
 }
 
@@ -317,7 +349,7 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
         break;
       }
       case OP_PRINT: {
-        printValue(pop());
+        printValue(peek(0));
         printf("\n");
         break;
       }

@@ -1,0 +1,6 @@
+print((1, 2))
+print(((1,2), (2,3)))
+let a = (4, 2);
+print(first(a))
+print(second(a))
+print((second(a), first(a)))

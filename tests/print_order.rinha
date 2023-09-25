@@ -1,0 +1,6 @@
+fn f(a, b, c) => {}
+
+let _ = print(1); print(2)
+f(print(1), print(2), print(3))
+let tuple = (print(1), print(2)); print(tuple)
+print(print(1) + print(2))
