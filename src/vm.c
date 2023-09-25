@@ -181,8 +181,8 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
       runtimeError("Operands must be numbers.");      \
       return INTERPRET_RUNTIME_ERROR;                 \
     }                                                 \
-    int b = AS_NUMBER(pop());                      \
-    int a = AS_NUMBER(pop());                      \
+    int b = AS_NUMBER(pop());                         \
+    int a = AS_NUMBER(pop());                         \
     push(valueType(a op b));                          \
   } while (false)
 
@@ -252,6 +252,12 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
       case OP_SET_UPVALUE: {
         uint8_t slot = READ_BYTE();
         *frame->closure->upvalues[slot]->location = peek(0);
+        break;
+      }
+      case OP_DEFINE_TUPLE: {  // PERF: global vars are lazy eval, change to compile time to improve perf
+        Value second = pop();
+        Value first = pop();
+        push(OBJ_VAL(newTuple(&first, &second)));
         break;
       }
       case OP_BANG_EQUAL: {

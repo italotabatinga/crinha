@@ -88,6 +88,13 @@ ObjString* copyString(const char* chars, int length) {
   return allocateString(heapChars, length, hash);
 }
 
+ObjTuple* newTuple(Value* first, Value* second) {
+  ObjTuple* tuple = ALLOCATE_OBJ(ObjTuple, OBJ_TUPLE);
+  tuple->first = *first;
+  tuple->second = *second;
+  return tuple;
+}
+
 ObjUpvalue* newUpvalue(Value* slot) {
   ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
   upvalue->closed = NIL_VAL;
@@ -101,7 +108,7 @@ static void printFunction(ObjFunction* function) {
     printf("<script>");
     return;
   }
-  printf("<fn %s>", function->name->chars);
+  printf("<#%s>", function->name->chars);
 }
 
 ObjString* convertToString(Value value) {
@@ -131,6 +138,15 @@ void printObject(Value value) {
     case OBJ_STRING:
       printf("%s", AS_CSTRING(value));
       break;
+    case OBJ_TUPLE: {
+      ObjTuple* tuple = AS_TUPLE(value);
+      printf("(");
+      printValue(tuple->first);
+      printf(", ");
+      printValue(tuple->second);
+      printf(")");
+      break;
+    }
     case OBJ_UPVALUE:
       printf("upvalue");
       break;

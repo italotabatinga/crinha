@@ -1,1 +1,9 @@
-print ("Hello world")
+fn function() => {}
+
+print ("Crinha!")
+print (2)
+print (true)
+print (false)
+print (function)
+print ((1,2))
+print (((1, 2), 3 + 5))

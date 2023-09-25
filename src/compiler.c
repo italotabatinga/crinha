@@ -416,7 +416,13 @@ static void literal(bool canAssign) {
 
 static void grouping(bool canAssign) {
   expression();
-  consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
+  if (match(TOKEN_COMMA)) {
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
+    emitByte(OP_DEFINE_TUPLE);
+  } else {
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
+  }
 }
 
 static void number(bool canAssign) {
