@@ -1,0 +1,15 @@
+services:
+  crinha:
+    build: .
+    cpu_count: 2
+    mem_limit: 2gb
+    volumes:
+      - ./source.rinha:/var/rinha/source.rinha
+  crinha-benchmark:
+    build:
+      context: ./
+      dockerfile: ./benchmarks/Dockerfile
+    cpu_count: 2
+    mem_limit: 2gb
+    volumes:
+      - ./benchmarks/:/benchmarks/
