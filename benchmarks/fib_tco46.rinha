@@ -1,0 +1,13 @@
+let fibTco = fn (n, a, b) => {
+  if (n == 0) {
+    a
+  } else {
+    if (n == 1) {
+      b
+    } else {
+      fibTco(n - 1, b, a + b)
+    }
+  }
+};
+
+fibTco(46, 0, 1)

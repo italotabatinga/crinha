@@ -22,7 +22,7 @@ function benchmark() {
   f=$2
   filename=$(basename $f)
   printf %-30s $filename | tr ' ' .
-  times=20
+  times=50
   elapsed=0.0
   for (( i=1; i <= $times; i++ )); do
     it=$( { time $cmd $f 2> /dev/null ; } 2>&1 )
