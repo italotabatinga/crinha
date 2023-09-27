@@ -1,0 +1,12 @@
+let stack = fn (a) => {
+  let b = a;
+  if (true) {
+    b
+  } else {
+    a
+  }
+  b = b + 1;
+  3;
+};
+
+print(stack(2))
