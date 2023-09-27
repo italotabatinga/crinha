@@ -8,3 +8,18 @@ let fib = fn (n) => {
 
 print(fib(10))
 print(fib(15))
+
+let fibTco = fn (n, a, b) => {
+  if (n == 0) {
+    a
+  } else {
+    if (n == 1) {
+      b
+    } else {
+      fibTco(n - 1, b, a + b)
+    }
+  }
+};
+
+print(fibTco(45, 0, 1))
+print(fibTco(46, 0, 1))
