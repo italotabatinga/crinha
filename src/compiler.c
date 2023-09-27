@@ -155,8 +155,23 @@ static int emitJump(uint8_t instruction) {
   return currentChunk()->count - 2;
 }
 
-static void emitReturn() {
-  emitByte(OP_NIL);
+static void patchTailCall() {
+  int call = currentChunk()->count - 2;
+
+  if (call >= 0 &&
+      current->enclosing != NULL &&
+      current->function->upvalueCount == 0 &&
+      currentChunk()->code[call] == OP_CALL) {
+    currentChunk()->code[call] = OP_TCALL;
+  }
+}
+
+static void emitReturn(bool returnNil) {
+  if (returnNil) {
+    emitByte(OP_NIL);
+  } else {
+    patchTailCall();
+  }
   emitByte(OP_RETURN);
 }
 
@@ -204,7 +219,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 }
 
 static ObjFunction* endCompiler() {
-  emitByte(OP_RETURN);
+  emitReturn(false);
   ObjFunction* function = current->function;
 
 #ifdef DEBUG_PRINT_CODE
@@ -649,11 +664,11 @@ static void returnStatement() {
   }
 
   if (match(TOKEN_SEMICOLON)) {
-    emitReturn();
+    emitReturn(true);
   } else {
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
-    emitByte(OP_RETURN);
+    emitReturn(false);
   }
 }
 

@@ -137,11 +137,37 @@ static bool call(ObjClosure* closure, int argCount) {
   return true;
 }
 
-static bool callValue(Value callee, int argCount) {
+static bool tailCall(ObjClosure* closure, int argCount) {
+  if (argCount != closure->function->arity) {
+    runtimeError("Expected %d arguments but got %d.", closure->function->arity, argCount);
+    return false;
+  }
+
+  if (vm.frameCount == FRAMES_MAX) {
+    runtimeError("Stack overflow.");
+    return false;
+  }
+
+  CallFrame* frame = &vm.frames[vm.frameCount - 1];
+  Value* dst;
+  for (size_t i = 0; i < argCount + 1; i++) {
+    dst = frame->slots + i;
+    *dst = *(vm.stackTop - argCount - 1 + i);
+  }
+  frame->closure = closure;
+  frame->ip = closure->function->chunk.code;
+  return true;
+}
+
+static bool callValue(Value callee, int argCount, bool shouldTailCall) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
       case OBJ_CLOSURE:
-        return call(AS_CLOSURE(callee), argCount);
+        if (shouldTailCall) {
+          return tailCall(AS_CLOSURE(callee), argCount);
+        } else {
+          return call(AS_CLOSURE(callee), argCount);
+        }
       case OBJ_NATIVE: {
         NativeFn native = AS_NATIVE(callee);
         Value result = native(argCount, vm.stackTop - argCount);
@@ -441,10 +467,21 @@ static InterpretResult runOptimized() {  // dispatching can be made faster with 
     CASE_CODE(CALL) : {
       int argCount = READ_BYTE();
       frame->ip = ip;
-      if (!callValue(peek(argCount), argCount)) {
+      if (!callValue(peek(argCount), argCount, false)) {
         return INTERPRET_RUNTIME_ERROR;
       }
       frame = &vm.frames[vm.frameCount - 1];
+      ip = frame->ip;
+      DISPATCH();
+    }
+    CASE_CODE(TCALL) : {
+      int argCount = READ_BYTE();
+      frame->ip = ip;
+      if (!callValue(peek(argCount), argCount, true)) {
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      frame = &vm.frames[vm.frameCount - 1];
+      vm.stackTop = frame->slots + argCount + 1;
       ip = frame->ip;
       DISPATCH();
     }
