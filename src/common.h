@@ -8,6 +8,14 @@
 #define DEBUG_PRINT_CODE
 #define DEBUG_TRACE_EXECUTION
 
+#ifndef COMPUTED_GOTO
+#ifdef _MSC_VER
+  #define COMPUTED_GOTO 0
+#else
+  #define COMPUTED_GOTO 1
+#endif
+#endif
+
 #define UINT8_COUNT (UINT8_MAX + 1)
 
 #endif

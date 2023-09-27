@@ -41,7 +41,12 @@ static void runtimeError(const char* format, ...) {
   resetStack();
 }
 
-static Value clockNative(int argCount, Value* args) {
+static Value clockNative(int argCount, __attribute__((unused)) Value* args) {
+  if (argCount > 0) {
+    runtimeError("Expected 0 arguments");
+    return NIL_VAL;
+  }
+
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
 
@@ -198,9 +203,60 @@ static void concatenate(char* a, int aLength, char* b, int bLength) {
   push(OBJ_VAL(result));
 }
 
-static InterpretResult run() {  // dispatching can be made faster with direct threaded code, jump table, computed goto
-  CallFrame* frame = &vm.frames[vm.frameCount - 1];
-  register uint8_t* ip = frame->ip;
+static InterpretResult runOptimized() {  // dispatching can be made faster with direct threaded code, jump table, computed goto
+  register CallFrame* frame;
+  register uint8_t* ip;
+
+#define LOAD_FRAME()                     \
+  frame = &vm.frames[vm.frameCount - 1]; \
+  ip = frame->ip;
+
+#define STORE_FRAME() frame->ip = ip
+
+#ifdef DEBUG_TRACE_EXECUTION
+#define TRACE_EXECUTION()                                    \
+  printf("          ");                                      \
+  for (Value* slot = vm.stack; slot < vm.stackTop; slot++) { \
+    printf("[");                                             \
+    printValue(*slot);                                       \
+    printf("]");                                             \
+  }                                                          \
+  printf("\n");                                              \
+  disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
+
+#else
+
+#define TRACE_EXECUTION() \
+  do {                    \
+  } while (false)
+#endif
+
+#if COMPUTED_GOTO
+  static void* dispatchTable[] = {
+#define OPCODE(op) &&code_##op,
+#include "opcodes.h"
+#undef OPCODE
+  };
+
+#define INTERPRET_LOOP DISPATCH();
+#define CASE_CODE(name) code_##name
+#define DISPATCH()                                          \
+  do {                                                      \
+    TRACE_EXECUTION();                                      \
+    goto* dispatchTable[instruction = (OpCode)READ_BYTE()]; \
+  } while (false)
+
+#else
+
+#define INTERPRET_LOOP \
+  loop:                \
+  TRACE_EXECUTION();   \
+  switch (instruction = (OpCode)READ_BYTE())
+
+#define CASE_CODE(name) case OP_##name
+#define DISPATCH() goto loop
+
+#endif
 
 #define READ_BYTE() (*ip++)
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
@@ -219,214 +275,216 @@ static InterpretResult run() {  // dispatching can be made faster with direct th
     push(valueType(a op b));                          \
   } while (false)
 
-  for (;;) {
-#ifdef DEBUG_TRACE_EXECUTION
-    printf("          ");
-    for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
-      printf("[");
-      printValue(*slot);
-      printf("]");
+  LOAD_FRAME();
+  OpCode instruction;
+  INTERPRET_LOOP {
+    CASE_CODE(CONSTANT) : {
+      Value constant = READ_CONSTANT();
+      push(constant);
+      DISPATCH();
     }
-    printf("\n");
-    disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
-#endif
-
-    uint8_t instruction;
-    switch (instruction = READ_BYTE()) {
-      case OP_CONSTANT: {
-        Value constant = READ_CONSTANT();
-        push(constant);
-        break;
-      }
-      case OP_NIL: push(NIL_VAL); break;
-      case OP_TRUE: push(BOOL_VAL(true)); break;
-      case OP_FALSE: push(BOOL_VAL(false)); break;
-      case OP_POP: pop(); break;
-      case OP_GET_LOCAL: {
-        uint8_t slot = READ_BYTE();
-        push(frame->slots[slot]);
-        break;
-      }
-      case OP_SET_LOCAL: {
-        uint8_t slot = READ_BYTE();
-        frame->slots[slot] = peek(0);
-        break;
-      }
-      case OP_GET_GLOBAL: {  // PERF: looking up in hash tables is slow, how to improve?
-        ObjString* name = READ_STRING();
-        Value value;
-        if (!tableGet(&vm.globals, name, &value)) {
-          frame->ip = ip;
-          runtimeError("Undefined variable '%s'.", name->chars);
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        push(value);
-        break;
-      }
-      case OP_DEFINE_GLOBAL: {  // PERF: global vars are lazy eval, change to compile time to improve perf
-        ObjString* name = READ_STRING();
-        tableSet(&vm.globals, name, peek(0));
-        pop();
-        break;
-      }
-      case OP_SET_GLOBAL: {
-        ObjString* name = READ_STRING();
-        if (tableSet(&vm.globals, name, peek(0))) {
-          tableDelete(&vm.globals, name);
-          frame->ip = ip;
-          runtimeError("Undefined variable '%s'.", name->chars);
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        break;
-      }
-      case OP_GET_UPVALUE: {
-        uint8_t slot = READ_BYTE();
-        push(*frame->closure->upvalues[slot]->location);
-        break;
-      }
-      case OP_SET_UPVALUE: {
-        uint8_t slot = READ_BYTE();
-        *frame->closure->upvalues[slot]->location = peek(0);
-        break;
-      }
-      case OP_DEFINE_TUPLE: {
-        Value second = pop();
-        Value first = pop();
-        push(OBJ_VAL(newTuple(&first, &second)));
-        break;
-      }
-      case OP_BANG_EQUAL: {
-        Value b = pop();
-        Value a = pop();
-        push(BOOL_VAL(!valuesEqual(a, b)));
-        break;
-      }
-      case OP_EQUAL: {
-        Value b = pop();
-        Value a = pop();
-        push(BOOL_VAL(valuesEqual(a, b)));
-        break;
-      }
-      case OP_GREATER: BINARY_OP(BOOL_VAL, >); break;
-      case OP_LESS: BINARY_OP(BOOL_VAL, <); break;
-      case OP_GREATER_EQUAL: BINARY_OP(BOOL_VAL, >=); break;
-      case OP_LESS_EQUAL: BINARY_OP(BOOL_VAL, <=); break;
-      case OP_ADD: {
-        Value p0 = peek(0);
-        Value p1 = peek(1);
-        if (IS_STRING(p0) && IS_STRING(p1)) {
-          ObjString* b = AS_STRING(pop());
-          ObjString* a = AS_STRING(pop());
-
-          concatenate(a->chars, a->length, b->chars, b->length);
-        } else if (IS_NUMBER(p0) && IS_NUMBER(p1)) {
-          int b = AS_NUMBER(pop());
-          int a = AS_NUMBER(pop());
-          push(NUMBER_VAL(a + b));
-        } else if (IS_NUMBER(p0) && IS_STRING(p1)) {
-          ObjString* b = convertToString(pop());
-          ObjString* a = AS_STRING(pop());
-
-          concatenate(a->chars, a->length, b->chars, b->length);
-        } else if (IS_STRING(p0) && IS_NUMBER(p1)) {
-          ObjString* b = AS_STRING(pop());
-          ObjString* a = convertToString(pop());
-
-          concatenate(a->chars, a->length, b->chars, b->length);
-
-        } else {
-          frame->ip = ip;
-          runtimeError("Operands must be two numbers or two strings.");
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        break;
-      }
-      case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
-      case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
-      case OP_DIVIDE: BINARY_OP(NUMBER_VAL, /); break;
-      case OP_MODULO: BINARY_OP(NUMBER_VAL, %); break;
-      case OP_NOT: push(BOOL_VAL(isFalsey(pop()))); break;
-      case OP_NEGATE: {
-        if (!IS_NUMBER(peek(0))) {
-          frame->ip = ip;
-          runtimeError("Operand must be a number.");
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        push(NUMBER_VAL(-AS_NUMBER(pop())));
-        break;
-      }
-      case OP_PRINT: {
-        printValue(peek(0));
-        printf("\n");
-        break;
-      }
-      case OP_JUMP: {
-        uint16_t offset = READ_SHORT();
-        ip += offset;
-        break;
-      }
-      case OP_JUMP_IF_TRUE: {
-        uint16_t offset = READ_SHORT();
-        if (!isFalsey(peek(0))) ip += offset;
-        break;
-      }
-      case OP_JUMP_IF_FALSE: {
-        uint16_t offset = READ_SHORT();
-        if (isFalsey(peek(0))) ip += offset;
-        break;
-      }
-      case OP_LOOP: {
-        uint16_t offset = READ_SHORT();
-        ip -= offset;
-        break;
-      }
-      case OP_CALL: {
-        int argCount = READ_BYTE();
+    CASE_CODE(NIL) : push(NIL_VAL);
+    DISPATCH();
+    CASE_CODE(TRUE) : push(BOOL_VAL(true));
+    DISPATCH();
+    CASE_CODE(FALSE) : push(BOOL_VAL(false));
+    DISPATCH();
+    CASE_CODE(POP) : pop();
+    DISPATCH();
+    CASE_CODE(GET_LOCAL) : {
+      uint8_t slot = READ_BYTE();
+      push(frame->slots[slot]);
+      DISPATCH();
+    }
+    CASE_CODE(SET_LOCAL) : {
+      uint8_t slot = READ_BYTE();
+      frame->slots[slot] = peek(0);
+      DISPATCH();
+    }
+    CASE_CODE(GET_GLOBAL) : {  // PERF: looking up in hash tables is slow, how to improve?
+      ObjString* name = READ_STRING();
+      Value value;
+      if (!tableGet(&vm.globals, name, &value)) {
         frame->ip = ip;
-        if (!callValue(peek(argCount), argCount)) {
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        frame = &vm.frames[vm.frameCount - 1];
-        ip = frame->ip;
-        break;
+        runtimeError("Undefined variable '%s'.", name->chars);
+        return INTERPRET_RUNTIME_ERROR;
       }
-      case OP_CLOSURE: {
-        ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
-        ObjClosure* closure = newClosure(function);
-        push(OBJ_VAL(closure));
-        for (int i = 0; i < closure->upvalueCount; i++) {
-          uint8_t isLocal = READ_BYTE();
-          uint8_t index = READ_BYTE();
-          if (isLocal) {
-            closure->upvalues[i] = captureUpValue(frame->slots + index);
-          } else {
-            closure->upvalues[i] = frame->closure->upvalues[index];
-          }
-        }
-        break;
+      push(value);
+      DISPATCH();
+    }
+    CASE_CODE(DEFINE_GLOBAL) : {  // PERF: global vars are lazy eval, change to compile time to improve perf
+      ObjString* name = READ_STRING();
+      tableSet(&vm.globals, name, peek(0));
+      pop();
+      DISPATCH();
+    }
+    CASE_CODE(SET_GLOBAL) : {
+      ObjString* name = READ_STRING();
+      if (tableSet(&vm.globals, name, peek(0))) {
+        tableDelete(&vm.globals, name);
+        frame->ip = ip;
+        runtimeError("Undefined variable '%s'.", name->chars);
+        return INTERPRET_RUNTIME_ERROR;
       }
-      case OP_CLOSE_UPVALUE: {
-        closeUpvalues(vm.stackTop - 1);
-        pop();
-        break;
-      }
-      case OP_RETURN: {
-        Value result = pop();
-        closeUpvalues(frame->slots);
-        vm.frameCount--;
-        if (vm.frameCount == 0) {
-          pop();
-          return INTERPRET_OK;
-        }
+      DISPATCH();
+    }
+    CASE_CODE(GET_UPVALUE) : {
+      uint8_t slot = READ_BYTE();
+      push(*frame->closure->upvalues[slot]->location);
+      DISPATCH();
+    }
+    CASE_CODE(SET_UPVALUE) : {
+      uint8_t slot = READ_BYTE();
+      *frame->closure->upvalues[slot]->location = peek(0);
+      DISPATCH();
+    }
+    CASE_CODE(DEFINE_TUPLE) : {
+      Value second = pop();
+      Value first = pop();
+      push(OBJ_VAL(newTuple(&first, &second)));
+      DISPATCH();
+    }
+    CASE_CODE(BANG_EQUAL) : {
+      Value b = pop();
+      Value a = pop();
+      push(BOOL_VAL(!valuesEqual(a, b)));
+      DISPATCH();
+    }
+    CASE_CODE(EQUAL) : {
+      Value b = pop();
+      Value a = pop();
+      push(BOOL_VAL(valuesEqual(a, b)));
+      DISPATCH();
+    }
+    CASE_CODE(GREATER) : BINARY_OP(BOOL_VAL, >);
+    DISPATCH();
+    CASE_CODE(LESS) : BINARY_OP(BOOL_VAL, <);
+    DISPATCH();
+    CASE_CODE(GREATER_EQUAL) : BINARY_OP(BOOL_VAL, >=);
+    DISPATCH();
+    CASE_CODE(LESS_EQUAL) : BINARY_OP(BOOL_VAL, <=);
+    DISPATCH();
+    CASE_CODE(ADD) : {
+      Value p0 = peek(0);
+      Value p1 = peek(1);
+      if (IS_STRING(p0) && IS_STRING(p1)) {
+        ObjString* b = AS_STRING(pop());
+        ObjString* a = AS_STRING(pop());
 
-        vm.stackTop = frame->slots;
-        push(result);
-        frame = &vm.frames[vm.frameCount - 1];
-        ip = frame->ip;
-        break;
+        concatenate(a->chars, a->length, b->chars, b->length);
+      } else if (IS_NUMBER(p0) && IS_NUMBER(p1)) {
+        int b = AS_NUMBER(pop());
+        int a = AS_NUMBER(pop());
+        push(NUMBER_VAL(a + b));
+      } else if (IS_NUMBER(p0) && IS_STRING(p1)) {
+        ObjString* b = convertToString(pop());
+        ObjString* a = AS_STRING(pop());
+
+        concatenate(a->chars, a->length, b->chars, b->length);
+      } else if (IS_STRING(p0) && IS_NUMBER(p1)) {
+        ObjString* b = AS_STRING(pop());
+        ObjString* a = convertToString(pop());
+
+        concatenate(a->chars, a->length, b->chars, b->length);
+
+      } else {
+        frame->ip = ip;
+        runtimeError("Operands must be two numbers or two strings.");
+        return INTERPRET_RUNTIME_ERROR;
       }
+      DISPATCH();
+    }
+    CASE_CODE(SUBTRACT) : BINARY_OP(NUMBER_VAL, -);
+    DISPATCH();
+    CASE_CODE(MULTIPLY) : BINARY_OP(NUMBER_VAL, *);
+    DISPATCH();
+    CASE_CODE(DIVIDE) : BINARY_OP(NUMBER_VAL, /);
+    DISPATCH();
+    CASE_CODE(MODULO) : BINARY_OP(NUMBER_VAL, %);
+    DISPATCH();
+    CASE_CODE(NOT) : push(BOOL_VAL(isFalsey(pop())));
+    DISPATCH();
+    CASE_CODE(NEGATE) : {
+      if (!IS_NUMBER(peek(0))) {
+        frame->ip = ip;
+        runtimeError("Operand must be a number.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      push(NUMBER_VAL(-AS_NUMBER(pop())));
+      DISPATCH();
+    }
+    CASE_CODE(PRINT) : {
+      printValue(peek(0));
+      printf("\n");
+      DISPATCH();
+    }
+    CASE_CODE(JUMP) : {
+      uint16_t offset = READ_SHORT();
+      ip += offset;
+      DISPATCH();
+    }
+    CASE_CODE(JUMP_IF_TRUE) : {
+      uint16_t offset = READ_SHORT();
+      if (!isFalsey(peek(0))) ip += offset;
+      DISPATCH();
+    }
+    CASE_CODE(JUMP_IF_FALSE) : {
+      uint16_t offset = READ_SHORT();
+      if (isFalsey(peek(0))) ip += offset;
+      DISPATCH();
+    }
+    CASE_CODE(LOOP) : {
+      uint16_t offset = READ_SHORT();
+      ip -= offset;
+      DISPATCH();
+    }
+    CASE_CODE(CALL) : {
+      int argCount = READ_BYTE();
+      frame->ip = ip;
+      if (!callValue(peek(argCount), argCount)) {
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      frame = &vm.frames[vm.frameCount - 1];
+      ip = frame->ip;
+      DISPATCH();
+    }
+    CASE_CODE(CLOSURE) : {
+      ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
+      ObjClosure* closure = newClosure(function);
+      push(OBJ_VAL(closure));
+      for (int i = 0; i < closure->upvalueCount; i++) {
+        uint8_t isLocal = READ_BYTE();
+        uint8_t index = READ_BYTE();
+        if (isLocal) {
+          closure->upvalues[i] = captureUpValue(frame->slots + index);
+        } else {
+          closure->upvalues[i] = frame->closure->upvalues[index];
+        }
+      }
+      DISPATCH();
+    }
+    CASE_CODE(CLOSE_UPVALUE) : {
+      closeUpvalues(vm.stackTop - 1);
+      pop();
+      DISPATCH();
+    }
+    CASE_CODE(RETURN) : {
+      Value result = pop();
+      closeUpvalues(frame->slots);
+      vm.frameCount--;
+      if (vm.frameCount == 0) {
+        pop();
+        return INTERPRET_OK;
+      }
+
+      vm.stackTop = frame->slots;
+      push(result);
+      frame = &vm.frames[vm.frameCount - 1];
+      ip = frame->ip;
+      DISPATCH();
     }
   }
+
 #undef READ_BYTE
 #undef READ_SHORT
 #undef READ_CONSTANT
@@ -444,7 +502,7 @@ InterpretResult interpret(const char* source) {
   push(OBJ_VAL(closure));
   call(closure, 0);
 
-  InterpretResult result = run();
+  InterpretResult result = runOptimized();
 
   return result;
 }

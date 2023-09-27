@@ -370,7 +370,7 @@ static uint8_t argumentList() {
   return argCount;
 }
 
-static void and_(bool canAssign) {
+static void and_(__attribute__((unused)) bool canAssign) {
   int endJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
   parsePrecedence(PREC_AND);
@@ -378,7 +378,7 @@ static void and_(bool canAssign) {
   patchJump(endJump);
 }
 
-static void binary(bool canAssign) {
+static void binary(__attribute__((unused)) bool canAssign) {
   TokenType operatorType = parser.previous.type;
   ParseRule* rule = getRule(operatorType);
   parsePrecedence((Precedence)(rule->precedence + 1));
@@ -400,12 +400,12 @@ static void binary(bool canAssign) {
   }
 }
 
-static void call(bool canAssign) {
+static void call(__attribute__((unused)) bool canAssign) {
   uint8_t argCount = argumentList();
   emitBytes(OP_CALL, argCount);
 }
 
-static void literal(bool canAssign) {
+static void literal(__attribute__((unused)) bool canAssign) {
   switch (parser.previous.type) {
     case TOKEN_FALSE: emitByte(OP_FALSE); break;
     case TOKEN_NIL: emitByte(OP_NIL); break;
@@ -415,7 +415,7 @@ static void literal(bool canAssign) {
   }
 }
 
-static void grouping(bool canAssign) {
+static void grouping(__attribute__((unused)) bool canAssign) {
   expression();
   if (match(TOKEN_COMMA)) {
     expression();
@@ -426,12 +426,12 @@ static void grouping(bool canAssign) {
   }
 }
 
-static void number(bool canAssign) {
+static void number(__attribute__((unused)) bool canAssign) {
   double value = strtod(parser.previous.start, NULL);
   emitConstant(NUMBER_VAL(value));
 }
 
-static void or_(bool canAssign) {
+static void or_(__attribute__((unused)) bool canAssign) {
   int endJump = emitJump(OP_JUMP_IF_TRUE);
   emitByte(OP_POP);
   parsePrecedence(PREC_OR);
@@ -439,7 +439,7 @@ static void or_(bool canAssign) {
   patchJump(endJump);
 }
 
-static void string(bool canAssign) {                                                         // if string with \n were supported, this would be the function to convert it
+static void string(__attribute__((unused)) bool canAssign) {                                 // if string with \n were supported, this would be the function to convert it
   emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));  // MEM: this create a new constant every time the same variable is used, how to improve?
 }
 
@@ -470,7 +470,7 @@ static void variable(bool canAssign) {
   namedVariable(parser.previous, canAssign);
 }
 
-static void unary(bool canAssign) {
+static void unary(__attribute__((unused)) bool canAssign) {
   TokenType operatorType = parser.previous.type;
 
   parsePrecedence(PREC_UNARY);
@@ -483,7 +483,7 @@ static void unary(bool canAssign) {
   }
 }
 
-static void functionExpression(bool canAssign) {
+static void functionExpression(__attribute__((unused)) bool canAssign) {
   function(TYPE_FUNCTION);
 }
 

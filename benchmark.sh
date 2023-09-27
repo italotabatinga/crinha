@@ -48,7 +48,7 @@ function benchmarks() {
           benchmark ruby $b
           ;;
         c)
-          gcc -o tmp/benchmark.out $b
+          gcc -o tmp/benchmark.out -O3 $b
           benchmark tmp/benchmark.out $b
           ;;
       esac
