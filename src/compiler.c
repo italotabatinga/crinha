@@ -607,8 +607,11 @@ static void function(FunctionType type) {
   }
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
   consume(TOKEN_ARROW, "Expect '=>' before function body.");
-  consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
-  block();
+  if (match(TOKEN_LEFT_BRACE)) {
+    block();
+  } else {
+    expression();
+  }
 
   ObjFunction* function = endCompiler();
   emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));

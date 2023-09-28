@@ -23,3 +23,13 @@ let fibTco = fn (n, a, b) => {
 
 print(fibTco(45, 0, 1))
 print(fibTco(46, 0, 1))
+
+let fibBug = fn (n) => {
+    let v = n();
+    if (v < 2) {
+        v
+    } else {
+        fibBug(fn () => v - 1) + fibBug(fn () => v - 2)
+    }
+};
+print(fibBug(fn () => 10))
