@@ -508,10 +508,22 @@ static void ifExpression(__attribute__((unused)) bool canAssign) {
   ifStatement(TYPE_FUNCTION);
 }
 
+static void block() {
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+    declaration();
+  }
+
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+}
+
+static void blockExpression(canAssign) {
+  block();
+}
+
 ParseRule rules[] = {
     [TOKEN_LEFT_PAREN] = {grouping, call, PREC_CALL},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_LEFT_BRACE] = {blockExpression, NULL, PREC_CALL},
     [TOKEN_RIGHT_BRACE] = {NULL, NULL, PREC_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
     [TOKEN_DOT] = {NULL, NULL, PREC_NONE},
@@ -579,14 +591,6 @@ static ParseRule* getRule(TokenType type) {
 
 static void expression() {
   parsePrecedence(PREC_ASSIGNMENT);
-}
-
-static void block() {
-  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
-    declaration();
-  }
-
-  consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
 
 static void function(FunctionType type) {
@@ -726,16 +730,6 @@ static void declaration() {
 static void statement() {
   if (match(TOKEN_PRINT)) {
     printStatement();
-  } else if (match(TOKEN_IF)) {
-    ifStatement();
-  } else if (match(TOKEN_RETURN)) {
-    returnStatement();
-  } else if (match(TOKEN_WHILE)) {
-    whileStatement();
-  } else if (match(TOKEN_LEFT_BRACE)) {
-    beginScope();
-    block();
-    endScope();
   } else {
     expressionStatement();
   }
