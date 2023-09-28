@@ -97,6 +97,12 @@ void initVM() {
   defineNative("first", firstNative);
   defineNative("second", secondNative);
   vm.objects = NULL;
+  vm.bytesAllocated = 0;
+  vm.nextGC = 1024 * 1024;
+
+  vm.grayCount = 0;
+  vm.grayCapacity = 0;
+  vm.grayStack = NULL;
 }
 
 void freeVM() {
@@ -226,6 +232,8 @@ static void concatenate(char* a, int aLength, char* b, int bLength) {
   chars[length] = '\0';
 
   ObjString* result = takeString(chars, length);
+  pop();
+  pop();
   push(OBJ_VAL(result));
 }
 
@@ -394,22 +402,23 @@ static InterpretResult runOptimized() {  // dispatching can be made faster with 
       Value p0 = peek(0);
       Value p1 = peek(1);
       if (IS_STRING(p0) && IS_STRING(p1)) {
-        ObjString* b = AS_STRING(pop());
-        ObjString* a = AS_STRING(pop());
+        ObjString* b = AS_STRING(peek(0));
+        ObjString* a = AS_STRING(peek(1));
 
         concatenate(a->chars, a->length, b->chars, b->length);
       } else if (IS_NUMBER(p0) && IS_NUMBER(p1)) {
         int b = AS_NUMBER(pop());
         int a = AS_NUMBER(pop());
+
         push(NUMBER_VAL(a + b));
       } else if (IS_NUMBER(p0) && IS_STRING(p1)) {
-        ObjString* b = convertToString(pop());
-        ObjString* a = AS_STRING(pop());
+        ObjString* b = convertToString(peek(0));
+        ObjString* a = AS_STRING(peek(1));
 
         concatenate(a->chars, a->length, b->chars, b->length);
       } else if (IS_STRING(p0) && IS_NUMBER(p1)) {
-        ObjString* b = AS_STRING(pop());
-        ObjString* a = convertToString(pop());
+        ObjString* b = AS_STRING(peek(0));
+        ObjString* a = convertToString(peek(1));
 
         concatenate(a->chars, a->length, b->chars, b->length);
 
@@ -418,6 +427,7 @@ static InterpretResult runOptimized() {  // dispatching can be made faster with 
         runtimeError("Operands must be two numbers or two strings.");
         return INTERPRET_RUNTIME_ERROR;
       }
+
       DISPATCH();
     }
     CASE_CODE(SUBTRACT) : BINARY_OP(NUMBER_VAL, -);
