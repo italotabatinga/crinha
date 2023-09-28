@@ -156,7 +156,7 @@ static bool tailCall(ObjClosure* closure, int argCount) {
 
   CallFrame* frame = &vm.frames[vm.frameCount - 1];
   Value* dst;
-  for (size_t i = 0; i < argCount + 1; i++) {
+  for (int i = 0; i < argCount + 1; i++) {
     dst = frame->slots + i;
     *dst = *(vm.stackTop - argCount - 1 + i);
   }
