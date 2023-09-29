@@ -4,3 +4,13 @@ let a = (4, 2);
 print(first(a))
 print(second(a))
 print((second(a), first(a)))
+
+let floodFill = fn (x, a, b) => {
+  if(x > 0) {
+    (a, floodFill(x - 1, b, x * (a + b + 1) % 9))
+  } else {
+    (a, b)
+  }
+};
+
+print(first(floodFill(1000, 0, 0)))

@@ -5,7 +5,7 @@
 #include "table.h"
 #include "value.h"
 
-#define FRAMES_MAX 512
+#define FRAMES_MAX 16384
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT) // even if dynamically allocated, should have a artificial limit for security reasons
 
 typedef struct {
