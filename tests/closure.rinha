@@ -17,3 +17,17 @@ let f = fn () => {
 };
 let g = f();
 print(g())
+
+// local recursive function
+let f = fn () => {
+  let rec = fn () => {
+    if (true) {
+      1
+    } else {
+      rec();
+    }
+  };
+  rec
+};
+let g = f();
+print(g())

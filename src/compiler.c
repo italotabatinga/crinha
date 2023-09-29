@@ -261,7 +261,7 @@ static int resolveLocal(Compiler* compiler, Token* name) {
   for (int i = compiler->localCount - 1; i >= 0; i--) {
     Local* local = &compiler->locals[i];
     if (identifiersEqual(name, &local->name)) {
-      if (local->depth == -1) {
+      if (local->depth == -1 && parser.current.type != TOKEN_LEFT_PAREN) {
         error("Can't read local variable in its own initializer.");
       }
       return i;
@@ -495,7 +495,7 @@ static void functionExpression(__attribute__((unused)) bool canAssign) {
 }
 
 static void ifExpression(__attribute__((unused)) bool canAssign) {
-  ifStatement(TYPE_FUNCTION);
+  ifStatement();
 }
 
 static void block() {
@@ -642,14 +642,14 @@ static void ifStatement() {
 
   int thenJmp = emitJump(OP_JUMP_IF_FALSE);  // PERF: could be a single instruction OP_JUMP_IF_FALSE_AND_POP, different from the one in and_
   emitByte(OP_POP);
-  statement();
+  expression();
 
   int elseJump = emitJump(OP_JUMP);
 
   patchJump(thenJmp);
   emitByte(OP_POP);
 
-  if (match(TOKEN_ELSE)) statement();
+  if (match(TOKEN_ELSE)) expression();
   patchJump(elseJump);
 }
 
