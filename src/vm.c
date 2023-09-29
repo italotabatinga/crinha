@@ -14,7 +14,7 @@
 VM vm;  // if needed to run multiple vm, better if this is not global
 
 static void resetStack() {
-  vm.stackTop = vm.stack;
+  vm.stackCount = 0;
   vm.frameCount = 0;
   vm.openUpvalues = NULL;
 }
@@ -88,6 +88,11 @@ static void defineNative(const char* name, NativeFn function) {
 }
 
 void initVM() {
+  vm.stack = ALLOCATE(Value, STACK_MIN);
+  vm.stackCapacity = STACK_MIN;
+  vm.frames = ALLOCATE(CallFrame, FRAMES_MIN);
+  vm.frameCapacity = FRAMES_MIN;
+
   resetStack();
   initTable(&vm.globals);
   initTable(&vm.strings);
@@ -106,23 +111,41 @@ void initVM() {
 }
 
 void freeVM() {
+  FREE_ARRAY(Value*, vm.stack, vm.stackCapacity);
+  FREE_ARRAY(CallFrame*, vm.frames, vm.frameCapacity);
   freeTable(&vm.globals);
   freeTable(&vm.strings);
   freeObjects();
 }
 
 void push(Value value) {
-  *vm.stackTop = value;
-  vm.stackTop++;
+  if (vm.stackCapacity < vm.stackCount + 1) {
+    int oldCapacity = vm.stackCapacity;
+    vm.stackCapacity = GROW_CAPACITY(oldCapacity);
+    vm.stack = GROW_ARRAY(Value, vm.stack, oldCapacity, vm.stackCapacity);
+  }
+
+  vm.stack[vm.stackCount] = value;
+  vm.stackCount++;
+}
+
+CallFrame* newFrame() {
+  if (vm.frameCapacity < vm.frameCount + 1) {
+    int oldCapacity = vm.frameCapacity;
+    vm.frameCapacity = GROW_CAPACITY(oldCapacity);
+    vm.frames = GROW_ARRAY(CallFrame, vm.frames, oldCapacity, vm.frameCapacity);
+  }
+
+  return &vm.frames[vm.frameCount++];
 }
 
 Value pop() {
-  vm.stackTop--;
-  return *vm.stackTop;
+  vm.stackCount--;
+  return vm.stack[vm.stackCount];
 }
 
 static Value peek(int distance) {
-  return vm.stackTop[-1 - distance];
+  return vm.stack[vm.stackCount - 1 - distance];
 }
 
 static bool call(ObjClosure* closure, int argCount) {
@@ -131,15 +154,11 @@ static bool call(ObjClosure* closure, int argCount) {
     return false;
   }
 
-  if (vm.frameCount == FRAMES_MAX) {
-    runtimeError("Stack overflow.");
-    return false;
-  }
 
-  CallFrame* frame = &vm.frames[vm.frameCount++];
+  CallFrame* frame = newFrame();
   frame->closure = closure;
   frame->ip = closure->function->chunk.code;
-  frame->slots = vm.stackTop - argCount - 1;
+  frame->slots = vm.stack + vm.stackCount - argCount - 1;
   return true;
 }
 
@@ -149,16 +168,12 @@ static bool tailCall(ObjClosure* closure, int argCount) {
     return false;
   }
 
-  if (vm.frameCount == FRAMES_MAX) {
-    runtimeError("Stack overflow.");
-    return false;
-  }
 
-  CallFrame* frame = &vm.frames[vm.frameCount - 1];
+  CallFrame* frame = vm.frames + vm.frameCount - 1;
   Value* dst;
   for (int i = 0; i < argCount + 1; i++) {
     dst = frame->slots + i;
-    *dst = *(vm.stackTop - argCount - 1 + i);
+    *dst = vm.stack[vm.stackCount - argCount - 1 + i];
   }
   frame->closure = closure;
   frame->ip = closure->function->chunk.code;
@@ -176,8 +191,8 @@ static bool callValue(Value callee, int argCount, bool shouldTailCall) {
         }
       case OBJ_NATIVE: {
         NativeFn native = AS_NATIVE(callee);
-        Value result = native(argCount, vm.stackTop - argCount);
-        vm.stackTop -= argCount + 1;
+        Value result = native(argCount, vm.stack + vm.stackCount - argCount);
+        vm.stackCount -= argCount + 1;
         push(result);
         return true;
       }
@@ -248,14 +263,14 @@ static InterpretResult runOptimized() {  // dispatching can be made faster with 
 #define STORE_FRAME() frame->ip = ip
 
 #ifdef DEBUG_TRACE_EXECUTION
-#define TRACE_EXECUTION()                                    \
-  printf("          ");                                      \
-  for (Value* slot = vm.stack; slot < vm.stackTop; slot++) { \
-    printf("[");                                             \
-    printValue(*slot);                                       \
-    printf("]");                                             \
-  }                                                          \
-  printf("\n");                                              \
+#define TRACE_EXECUTION()                                                 \
+  printf("          ");                                                   \
+  for (Value* slot = vm.stack; slot < vm.stack + vm.stackCount; slot++) { \
+    printf("[");                                                          \
+    printValue(*slot);                                                    \
+    printf("]");                                                          \
+  }                                                                       \
+  printf("\n");                                                           \
   disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
 
 #else
@@ -491,7 +506,7 @@ static InterpretResult runOptimized() {  // dispatching can be made faster with 
         return INTERPRET_RUNTIME_ERROR;
       }
       frame = &vm.frames[vm.frameCount - 1];
-      vm.stackTop = frame->slots + argCount + 1;
+      vm.stackCount = frame->slots + argCount + 1 - vm.stack;
       ip = frame->ip;
       DISPATCH();
     }
@@ -511,7 +526,7 @@ static InterpretResult runOptimized() {  // dispatching can be made faster with 
       DISPATCH();
     }
     CASE_CODE(CLOSE_UPVALUE) : {
-      closeUpvalues(vm.stackTop - 1);
+      closeUpvalues(vm.stack + vm.stackCount - 1);
       pop();
       DISPATCH();
     }
@@ -524,7 +539,7 @@ static InterpretResult runOptimized() {  // dispatching can be made faster with 
         return INTERPRET_OK;
       }
 
-      vm.stackTop = frame->slots;
+      vm.stackCount = frame->slots - vm.stack;
       push(result);
       frame = &vm.frames[vm.frameCount - 1];
       ip = frame->ip;

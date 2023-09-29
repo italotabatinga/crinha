@@ -5,7 +5,9 @@
 #include "table.h"
 #include "value.h"
 
+#define FRAMES_MIN 256
 #define FRAMES_MAX 16384
+#define STACK_MIN (FRAMES_MIN * UINT8_COUNT) // even if dynamically allocated, should have a artificial limit for security reasons
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT) // even if dynamically allocated, should have a artificial limit for security reasons
 
 typedef struct {
@@ -15,11 +17,14 @@ typedef struct {
 } CallFrame;
 
 typedef struct {
-  CallFrame frames[FRAMES_MAX];
+  CallFrame* frames;
   int frameCount;
+  int frameCapacity;
 
-  Value stack[STACK_MAX];  // could grow dinamically
-  Value* stackTop;
+  Value* stack;
+  int stackCount;
+  int stackCapacity;
+
   Table globals;
   Table strings;
   ObjUpvalue* openUpvalues;
